@@ -148,7 +148,7 @@
         rc+ {:isolation [:read-committed :repeatable-read :serializable]}
         si+ {:isolation [:repeatable-read :serializable]}
         s   {:isolation [:serializable]}]
-    ; I'm writing (combos ...) explicitly here because it's conceivable we're
+    ; I'm writing (combos ...) explicitly here because it seems likely we're
     ; going to add some options that you *don't* want to take the cartesian
     ; product of, for specific workloads
     {:jsql/append          (combos rc+)
