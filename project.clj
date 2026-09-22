@@ -4,8 +4,11 @@
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.12.6"]
-                 [clj-http "3.13.1" :exclusions [commons-logging]]
-                 [jepsen "0.3.14"]
+                 [clj-http "3.13.1" :exclusions [commons-io
+                                                 commons-logging
+                                                 potemkin]]
+                 [jepsen "0.3.14"
+                  :exclusions [com.fasterxml.jackson.core/jackson-databind]]
                  [io.jepsen/sql "0.1.1"]
                  [com.yugabyte/cassandra-driver-core "3.10.3-yb-3"]
                  [org.slf4j/slf4j-api "2.0.19"]
