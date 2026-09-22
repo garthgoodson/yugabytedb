@@ -1,4 +1,4 @@
-(defproject io.jepsen/yugabyte "0.1.2"
+(defproject io.jepsen/yugabyte "0.1.3-SNAPSHOT"
   :description "Jepsen testing for YugaByteDB"
   :url "http://yugabyte.com/"
   :license {:name "Eclipse Public License"
