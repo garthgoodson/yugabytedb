@@ -7,7 +7,7 @@
                  [clj-http "3.13.1" :exclusions [commons-io
                                                  commons-logging
                                                  potemkin]]
-                 [jepsen "0.3.14"
+                 [jepsen "0.3.15-SNAPSHOT"
                   :exclusions [com.fasterxml.jackson.core/jackson-databind]]
                  [io.jepsen/sql "0.1.1"]
                  [com.yugabyte/cassandra-driver-core "3.10.3-yb-3"]
