@@ -193,7 +193,20 @@
     :clock-tserver
     :packet
     :packet-master
-    :packet-tserver})
+    :packet-tserver
+    :bitflip-file-chunks
+    :bitflip-file-chunks-master
+    :bitflip-file-chunks-tserver
+    :copy-file-chunks
+    :copy-file-chunks-master
+    :copy-file-chunks-tserver
+    :truncate-file
+    :truncate-file-master
+    :truncate-file-tserver
+    :snapshot-file-chunks
+    :snapshot-file-chunks-master
+    :snapshot-file-chunks-tserver
+    })
 
 (def all-nemeses
   "All nemesis specs to run as a part of a complete test suite."
@@ -210,7 +223,19 @@
      :pause-master
      :clock
      :partition
-     :packet}])
+     :packet}
+   ; Plus file corruption
+   #{:kill-tserver
+     :kill-master
+     :pause-tserver
+     :pause-master
+     :clock
+     :partition
+     :packet
+     :copy-file-chunks
+     :bitflip-file-chunks
+     :truncate-file
+     :snapshot-file-chunks}])
 
 (defn yugabyte-ssh-defaults
   "A partial test map with SSH options for a test running in Yugabyte's
@@ -296,7 +321,9 @@
                         (->> (:nemesis opts)
                              sort
                              (map name)
-                             (str/join ",")))))
+                             (str/join ","))))
+                 (when-let [cft (:corrupt-file-type opts)]
+                   (str " cft=" (name cft))))
       :os (case (:os opts)
             :centos centos/os
             :debian debian/os)

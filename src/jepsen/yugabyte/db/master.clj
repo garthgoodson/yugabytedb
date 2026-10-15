@@ -118,7 +118,8 @@
 (defn wipe!
   "Wipes all data files for the node."
   []
-  (c/su (c/exec :rm :-rf core/data-dir)))
+  (c/su (c/exec :rm :-rf core/data-dir))
+  (info "Wiped" core/data-dir))
 
 (defrecord DB []
   db/DB
@@ -131,10 +132,9 @@
         (await-converged test))))
 
   (teardown! [db test node]
-    (core/suppress-interrupted-exception
-      (c/su
-        (db/kill! db test node)
-        (wipe!))))
+    (c/su
+      (db/kill! db test node)
+      (wipe!)))
 
   db/Process
   (kill! [this test node]

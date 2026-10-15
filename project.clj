@@ -20,6 +20,6 @@
   :jvm-opts ["-Djava.awt.headless=true"
              "-Djava.net.preferIPv4Stack=true"
              "-Xms4g"
-             "-Xmx24g"
+             "-Xmx64g"
              "-XX:-OmitStackTraceInFastThrow"
              ])

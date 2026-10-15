@@ -22,9 +22,26 @@
 
 (def data-dir (str dir "/data"))
 
+(def tmp-dir "/tmp/jepsen/yugabyte")
+
 (def installed-url-file
-  "This file caches our version string, so we can skip re-downloading it each time."
-  (str dir "/installed-url"))
+  "This file caches our version string, so we can skip re-downloading it each
+  time."
+  (str tmp-dir "/installed-url"))
+
+(def share-tarball
+  "This is... very silly.. YB's tarball is chonky, and unpacking it takes a
+  while, so we don't want to untar it every single test. However, wiping the
+  data/ directory is *not* enough to get a clean state! Why? Because on
+  startup, YB *hardlinks* some SSTable files from share/ to data/. When we
+  corrupt files in data/, we can wind up modifying the other link in share/ as
+  well, which then leaks into later test runs.
+
+  To work around this, we tar up just the share/ directory, which is about a
+  fifteenth of the total directory volume, and cache it here. We then untar
+  this every test run, to ensure we always start with a clean copy of
+  share/."
+  (str tmp-dir "/share.tar.gz"))
 
 ; Versions where things changed
 (def minimal-packed-version "2.16.4.0-b1")
@@ -34,13 +51,14 @@
   "2026.1.0.0-b0")
 
 (defmacro suppress-interrupted-exception
-  "When there's an error encountered on one of the node, the whole cluster worker thread group
-  is interrupted (see dom-top.core/real-pmap-helper). This is likely to interrupt a bunch of waits
-  and sleeps in SSH connection helpers, which would cause a lot of noise in the log.
-  Same happens when the Ctrl+C is pressed.
+  "When there's an error encountered on one of the node, the whole cluster
+  worker thread group is interrupted (see dom-top.core/real-pmap-helper). This
+  is likely to interrupt a bunch of waits and sleeps in SSH connection helpers,
+  which would cause a lot of noise in the log. Same happens when the Ctrl+C is
+  pressed.
 
-  Since interruption only happens on error, we can safely suppress those InterruptedExceptions -
-  execution as a whole will error out anyway."
+  Since interruption only happens on error, we can safely suppress those
+  InterruptedExceptions - execution as a whole will error out anyway."
   [& body]
   `(try+
      (do ~@body)
@@ -71,7 +89,7 @@
                       :--port (if (:connection-manager test)
                                 5431
                                 5433)])]
-    (info "/bin/ysqlsh" args)
+    ;(info "/bin/ysqlsh" args)
     (apply c/exec (str dir "/bin/ysqlsh")
            args)))
 
@@ -367,28 +385,37 @@
   "Installs YugabyteDB on a node."
   [test]
   (c/su
+    (c/exec :mkdir :-p tmp-dir)
     (c/cd dir
           (let [url           (download-url test)
                 installed-url (get-installed-url)]
-            ; Post-install takes forever, so let's try and skip this on
-            ; subsequent runs
-            (when-not (= url installed-url)
-              (info "Replacing version" installed-url "with" url)
-              (debian/install ["python3"])
-              (assert (re-find #"Python 3"
-                               (c/exec :python3 :--version (c/lit "2>&1"))))
+            ; Installing deps and unpacking the full tarball takes a little
+            ; bit, so we try to re-use an existing installation if possible.
+            (if (= url installed-url)
+              ; Fast path: we only need to replace share/, to make sure it
+              ; doesn't have any corrupted hardlinks
+              (do (info "Refreshing share/")
+                  (c/exec :rm :-rf "share")
+                  (c/exec :tar :xf share-tarball))
+              ; Slow path: install the distribution from scratch
+              (do (info "Replacing version" installed-url "with" url)
+                  (debian/install ["python3"])
+                  (assert (re-find #"Python 3"
+                                   (c/exec :python3 :--version (c/lit "2>&1"))))
 
-              (info "Installing tarball into" dir)
-              (cu/install-archive! url dir)
-              (c/su (let [post-install-script-path "./bin/post_install.sh"]
-                      (info "Post-install script")
+                  (info "Installing tarball into" dir)
+                  (cu/install-archive! url dir)
+                  (let [post-install-script-path "./bin/post_install.sh"]
+                    (assert (cu/exists? post-install-script-path)
+                            "Post-install script does not exist!")
+                    (info "Post-install script")
+                    (c/exec post-install-script-path)
 
-                      (assert (cu/exists? post-install-script-path)
-                              "Post-install script does not exist!")
-                      (c/exec post-install-script-path)
+                    (info "Saving share/")
+                    (c/exec :tar :czf share-tarball "share/")
 
-                      (c/exec :echo url :>> installed-url-file)
-                      (info "Done with setup"))))))))
+                    (c/exec :echo url :>> installed-url-file)
+                    (info "Done with setup"))))))))
 
 (defn configure!
   "Configures a node after installation."

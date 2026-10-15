@@ -9,7 +9,8 @@
             [jepsen.random :as random]
             [jepsen.store :as store]
             [jepsen.sql]
-            [jepsen.yugabyte.core :as core]))
+            [jepsen.yugabyte [core :as core]
+                             [nemesis :as nemesis]]))
 
 (defn parse-nemesis-spec
   "Parses a comma-separated string of nemesis faults, and turns it into a set
@@ -44,16 +45,10 @@
     ; --expected-consistency-model, --key-count, etc.
     jepsen.sql/cli-opts
 
-    [["-o" "--os NAME" "Operating system: either centos or debian."
-      :default :debian
+    [[nil "--corrupt-file-type TYPES" "A single type of file to restrict our file corruptions to. See nemesis/file-types."
       :parse-fn keyword
-      :validate [#{:centos :debian} "One of `centos` or `debian`"]]
-
-     [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
-      :default false]
-
-     [nil "--heartbeat-flags" "Enable heartbeat tserver tracing flags on YB"
-      :default false]
+      :default :all
+      :validate [nemesis/file-types (cli/one-of nemesis/file-types)]]
 
      ; Because many of our workloads have specific concurrency requirements, we
      ; let the workloads themselves fill in defaults.
@@ -68,6 +63,12 @@
       :default true]
 
      [nil "--extreme-skew" "Enable extreme clock skew flags: master and tserver process can have different skew on one node"
+      :default false]
+
+     [nil "--experimental-tuning-flags" "Enable some experimental tuning flags which are supposed to help YB recover faster"
+      :default false]
+
+     [nil "--heartbeat-flags" "Enable heartbeat tserver tracing flags on YB"
       :default false]
 
      [nil "--final-recovery-time SECONDS" "How long, at most, to wait for the cluster to stabilize at the end of a test"
@@ -102,6 +103,11 @@
       :default 10
       :parse-fn parse-long
       :validate [(complement neg?) "should be a non-negative number"]]
+
+     ["-o" "--os NAME" "Operating system: either centos or debian."
+      :default :debian
+      :parse-fn keyword
+      :validate [#{:centos :debian} "One of `centos` or `debian`"]]
 
      [nil "--rate HZ" "Maximum request rate, in reqs/sec."
       :default  1000
