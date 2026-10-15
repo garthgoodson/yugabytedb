@@ -381,9 +381,24 @@
   * hard nofile 1048576
   * soft nofile 1048576")
 
+(defn install-locale!
+  "YugabyteDB's initdb uses the en_US.UTF-8 locale, which minimal Debian cloud
+  images do not ship (they only have C.UTF-8). Without it, the tserver fails
+  with `initdb: error: invalid locale name \"en_US.UTF-8\"`. Generates the
+  locale if it is missing; does nothing otherwise."
+  []
+  (c/su
+    (when-not (re-find #"(?mi)^en_US\.utf-?8$" (c/exec :locale :-a))
+      (info "Generating en_US.UTF-8 locale")
+      (debian/install ["locales"])
+      (c/exec :sed :-i "s/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/"
+              "/etc/locale.gen")
+      (c/exec :locale-gen))))
+
 (defn install!
   "Installs YugabyteDB on a node."
   [test]
+  (install-locale!)
   (c/su
     (c/exec :mkdir :-p tmp-dir)
     (c/cd dir
