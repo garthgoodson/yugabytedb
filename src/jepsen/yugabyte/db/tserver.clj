@@ -244,5 +244,10 @@
 
   db/LogFiles
   (log-files [_ _ _]
+    ; Postgres writes its logs as root with mode 0600 (log_file_mode). When
+    ; tests SSH in as a non-root user, snarf-logs! downloads without sudo and
+    ; scp fails with "Permission denied". Make the logs readable first.
+    (when (cu/exists? log-dir)
+      (c/su (c/exec :chmod :-R "a+rX" log-dir)))
     (merge (core/log-files-without-symlinks log-dir)
            {log-file "daemon.log"})))
